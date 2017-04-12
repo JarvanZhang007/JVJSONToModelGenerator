@@ -141,6 +141,9 @@
     NSMutableString *fileStrContentH=[NSMutableString stringWithFormat:
                               @"\n@interface %@ : NSObject",name];
     
+    //添加 解析 Array 容器类属性 支持
+    __block NSMutableDictionary *containerDictionary=[NSMutableDictionary dictionary];
+    
     // 遍历字典，把字典中的所有key取出来，生成对应的属性代码
     [dict enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
         
@@ -184,6 +187,8 @@
                     model.updatedKey=[NSString stringWithFormat:@"%@Model",[key capitalizedString]];
                     [self.updataArray addObject:model];
                     
+                    //对解析Array里包含Model的情况生成代码
+                    [containerDictionary setObject:replaceKey forKey:key];
                     
                     [self createObjCFileJsonObject:item fileName:replaceKey];
                 }else{
@@ -209,16 +214,40 @@
     [self.willWriteDictionary setObject:fileStrH forKey:[NSString stringWithFormat:@"%@.h",name]];
     
     
-    
-    NSString *fileStrM = [NSString stringWithFormat:@"#import \"%@.h\" \n\
-                          \n@implementation %@ \n\
-                         \n@end",name,name];
 
+    
+    __block NSMutableString *fileStrM=[NSMutableString stringWithFormat:@"#import \"%@.h\" \n\
+                               \n@implementation %@ \n\
+                               \n",name,name];
+    
+    if (containerDictionary.allKeys.count>0) {
+        [fileStrM appendString:[self StringForModelContainerPropertyGenericClass:containerDictionary]];
+    }
+    [fileStrM appendFormat:@"\n@end"];
+    
     [self.willWriteDictionary setObject:fileStrM forKey:[NSString stringWithFormat:@"%@.m",name]];
     
     
 }
 
+
+-(NSString *)StringForModelContainerPropertyGenericClass:(NSDictionary *)containerDictionary{
+
+    NSMutableString *str=[NSMutableString stringWithFormat:@"\n+ (NSDictionary *)modelContainerPropertyGenericClass {\
+                          \n    return @{"];
+    
+    NSMutableString *str1=[NSMutableString string];
+    [containerDictionary enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull obj, BOOL * _Nonnull stop) {
+            [str1 appendFormat:@"\n             @\"%@\" : [%@ class],",key,obj];
+    }];
+
+    [str1 deleteCharactersInRange:NSMakeRange(str1.length-1, 1)];
+    
+    [str appendFormat:@"%@%@",str1,@" \n             };\
+     \n}"];
+    
+    return str;
+}
 
 
 
